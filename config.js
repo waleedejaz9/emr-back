@@ -13,11 +13,10 @@ const config = {
   port: process.env.PORT,
   env: process.env.NODE_ENV,
   characters: process.env.CHARACTERS,
-  azureKey : process.env.AZURE_KEY,
-  azureContainerName: process.env.AZURE_CONTAINER_NAME,
+
   appUrl: process.env.APP_URL,
   baseUrl: process.env.BASE_URL,
-  whiteList: process.env.WHITELIST,
+
   jwtSecret: process.env.JWT_SECRET,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN,
 };

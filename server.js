@@ -20,7 +20,6 @@ const mongoose = require("mongoose");
 const { Image, User } = require("./models/user.model");
 const TrainingController = require("./controller/training.controller");
 const authorize = require("./middlewares/authorize.middleware");
-const { whiteList } = require("./config");
 dotenv.config();
 
 const app = express();
@@ -33,7 +32,7 @@ app.use(bodyParser.json());
 
 app.use(bodyParser.urlencoded({ extended: true }));
 
-const originWhitelist = whiteList;
+const originWhitelist = "https://orange-moss-004688710.5.azurestaticapps.net/";
 const corsOptions = {
   optionsSuccessStatus: 200,
   origin: (origin, callback) => {

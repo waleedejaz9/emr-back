@@ -6,15 +6,14 @@ const authorize = require("../middlewares/authorize.middleware");
 const { BlobServiceClient } = require("@azure/storage-blob");
 const uploadMiddleware = require("../middlewares/upload.middleware");
 const { Training, Video, VideoProgress } = require("../models/training.model");
-const { azureKey, azureContainerName } = require("../config");
 const router = express.Router();
 
 const upload = multer({ dest: "uploads/" });
 
 const blobServiceClient = BlobServiceClient.fromConnectionString(
-  azureKey
+  "DefaultEndpointsProtocol=https;AccountName=emrtraining;AccountKey=DrhWqb3BfWBzmTuPxrvuW/iQYTHo5aPmfLZksnNmgQeb01O2owx4l1V2g86YLYI/mJqF0MM9aC+++AStRlw2eg==;EndpointSuffix=core.windows.net"
 );
-const containerClient = blobServiceClient.getContainerClient(azureContainerName);
+const containerClient = blobServiceClient.getContainerClient("emr-training");
 
 router
   .get("/", [authorize()], TrainingController.getTraining)
