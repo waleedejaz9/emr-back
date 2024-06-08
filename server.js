@@ -20,6 +20,9 @@ const mongoose = require("mongoose");
 const { Image, User } = require("./models/user.model");
 const TrainingController = require("./controller/training.controller");
 const authorize = require("./middlewares/authorize.middleware");
+const { BlobServiceClient } = require("@azure/storage-blob");
+const uploadToAzure = require("./utils/uploadToAzure");
+
 dotenv.config();
 
 const app = express();
@@ -33,6 +36,8 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 const originWhitelist = "https://orange-moss-004688710.5.azurestaticapps.net/";
+// const originWhitelist = "http://localhost:5713/";
+
 const corsOptions = {
   optionsSuccessStatus: 200,
   origin: (origin, callback) => {
@@ -47,22 +52,12 @@ app.get("/", (req, res) => {
   res.json({ message: "Server is running" });
 });
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/");
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + path.extname(file.originalname)); // Appending extension
-  },
-});
+const blobServiceClient = BlobServiceClient.fromConnectionString(
+  "DefaultEndpointsProtocol=https;AccountName=emrtraining;AccountKey=DrhWqb3BfWBzmTuPxrvuW/iQYTHo5aPmfLZksnNmgQeb01O2owx4l1V2g86YLYI/mJqF0MM9aC+++AStRlw2eg==;EndpointSuffix=core.windows.net"
+);
 
+const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
-
-if (!fs.existsSync("uploads")) {
-  fs.mkdirSync("uploads");
-}
-
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.use("/api/user", userRoutes);
 app.use("/api/roles", roleRoutes);
@@ -91,8 +86,9 @@ app.post("/api/uploadImage/:userId", upload.single("image"), async (req, res) =>
       return res.status(400).json({ error: "No file uploaded." });
     }
 
-    const filePath = path.join("uploads", req.file.filename);
-
+    // const filePath = path.join("uploads", req.file.filename);
+    const fileUrl = await uploadToAzure(req.file);
+    console.log({ fileUrl });
     const imageCreated = await Image.findOne({ userId });
     if (imageCreated) {
       return res.status(400).json({ error: "Image already created. Update the image" });
@@ -100,14 +96,14 @@ app.post("/api/uploadImage/:userId", upload.single("image"), async (req, res) =>
 
     const newImage = new Image({
       userId: user._id,
-      imagePath: filePath,
+      imagePath: fileUrl,
     });
     await newImage.save();
 
-    user.imagePath = filePath;
+    user.imagePath = fileUrl;
     await user.save();
 
-    const imageUrl = `${req.protocol}://${req.get("host")}/${filePath}`;
+    const imageUrl = fileUrl;
     res.json({ imageUrl });
   } catch (error) {
     console.error(`Error uploading image: ${error.message}`);
@@ -136,22 +132,17 @@ app.patch("/api/updateImage/:userId", upload.single("image"), async (req, res) =
       return res.status(400).json({ error: "No file uploaded." });
     }
 
-    const newFilePath = path.join("uploads", req.file.filename);
-    image.imagePath = newFilePath;
+    // const newFilePath = path.join("uploads", req.file.filename);
+    const fileUrl = await uploadToAzure(req.file);
+    image.imagePath = fileUrl;
 
     await image.save();
 
-    user.imagePath = newFilePath;
+    user.imagePath = fileUrl;
     await user.save();
 
-    const imageUrl = `${req.protocol}://${req.get("host")}/${newFilePath}`;
+    const imageUrl = fileUrl;
     return res.json({ imageUrl });
-    // res.sendFile(newFilePath, (err) => {
-    //   if (err) {
-    //     console.error(`Error sending file: ${err.message}`);
-    //     return res.status(500).json({ error: "File could not be sent." });
-    //   }
-    // });
   } catch (error) {
     console.error(`Error updating image: ${error.message}`);
     res.status(500).json({ error: "An error occurred while updating the image." });

@@ -56,6 +56,7 @@ const AuthController = {
         eaName,
         eaEmail,
         eaPhoneNumber,
+        permission,
       } = req.body;
 
       const targetRoleId = new mongoose.Types.ObjectId("662c05660a775f5b72ebe9ba");
@@ -80,7 +81,7 @@ const AuthController = {
       const company = await Company.create({
         companyName,
         companyOfficerName,
-        department,
+        department: department,
         primaryEmail,
         secondaryEmail,
         mobilePhone,
@@ -101,6 +102,15 @@ const AuthController = {
         email: eaEmail,
         status: false,
       });
+
+      const permissionDetail = permission.map((perm) => ({
+        ...perm,
+        roleId: roleDocument._id,
+        userId: userCreated._id,
+      }));
+
+      const permissionData = await Permission.insertMany(permissionDetail);
+
       const mailOptions = {
         from: { name: "EMR Test", address: "junaidmalikk797@gmail.com" }, // sender address
         to: eaEmail,
@@ -110,7 +120,9 @@ const AuthController = {
 
       await sendEmail(transporter, mailOptions);
 
-      res.status(200).json({ success: true, user: userCreated, company: company });
+      res
+        .status(200)
+        .json({ success: true, user: userCreated, company: company, permissions: permissionData });
     } catch (error) {
       return res.status(500).json({ success: false, message: error.message });
     }
@@ -159,7 +171,8 @@ const AuthController = {
   },
   async getAllUser(req, res) {
     try {
-      const users = await User.find().populate("roles").populate("associatedWith");
+      const users = await User.find().populate("roles");
+      // .populate("associatedWith");
       return res.status(200).json({ success: true, length: users.length, data: users });
     } catch (error) {
       return res.status(500).json({ success: false, message: error.message });
@@ -447,7 +460,7 @@ const AuthController = {
   },
   async updateUser(req, res) {
     try {
-      const userId = req.params.userId;
+      // const userId = req.params.id;
       const {
         firstName,
         lastName,
@@ -468,16 +481,17 @@ const AuthController = {
         dateOfBirth,
         status,
       } = req.body;
+      const { user } = req;
 
-      const userDetail = await User.findById(userId);
+      const userDetail = await User.findById(user._id);
 
       if (!userDetail) {
         return res.status(404).json({ success: false, message: "userDetail not found." });
       }
-
-      const associatedCompany = await Company.findOne({ _id: company });
+      console.log(user.company);
+      const associatedCompany = await Company.findOne({ _id: user.company });
       if (!associatedCompany) {
-        res.status(400).json({ success: false, message: "No MHC found" });
+        return res.status(400).json({ success: false, message: "No MHC found" });
       }
 
       userDetail.firstName = firstName || userDetail.firstName;
