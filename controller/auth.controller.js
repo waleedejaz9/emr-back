@@ -105,7 +105,7 @@ const AuthController = {
 
       const permissionDetail = permission.map((perm) => ({
         ...perm,
-        roleId: roleDocument._id,
+        roleId: userCreated._id,
         userId: userCreated._id,
       }));
 
