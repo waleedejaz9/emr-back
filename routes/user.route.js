@@ -13,7 +13,7 @@ router
   .patch("/updateMhc/:id", [authorize()], AuthController.updateMhc)
   .post("/sign-up", [authorize()], AuthController.signUp)
   .post("/sign-in", AuthController.signIn)
-  .patch("/updateUser", [authorize()], AuthController.updateUser)
+  .patch("/updateUser/:id", [authorize()], AuthController.updateUser)
   .patch("/loginUpdateUser", [authorize()], AuthController.loginUpdateUser)
   .patch("/loginResetPassword", [authorize()], AuthController.resetPassword)
   .get("/getByRole/:roleId", [authorize()], AuthController.getUsersByRole)

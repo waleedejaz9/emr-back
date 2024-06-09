@@ -460,7 +460,7 @@ const AuthController = {
   },
   async updateUser(req, res) {
     try {
-      // const userId = req.params.id;
+      const userId = req.params.id;
       const {
         firstName,
         lastName,
@@ -483,13 +483,12 @@ const AuthController = {
       } = req.body;
       const { user } = req;
 
-      const userDetail = await User.findById(user._id);
+      const userDetail = await User.findById(userId);
 
       if (!userDetail) {
         return res.status(404).json({ success: false, message: "userDetail not found." });
       }
-      console.log(user.company);
-      const associatedCompany = await Company.findOne({ _id: user.company });
+      const associatedCompany = await Company.findOne({ _id: userDetail.company });
       if (!associatedCompany) {
         return res.status(400).json({ success: false, message: "No MHC found" });
       }
