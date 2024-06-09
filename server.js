@@ -15,12 +15,10 @@ const SurveyRoute = require("./routes/survey.route");
 const trainingRoutes = require("./routes/training.route");
 const cors = require("cors");
 const multer = require("multer");
-const fs = require("fs");
 const mongoose = require("mongoose");
 const { Image, User } = require("./models/user.model");
 const TrainingController = require("./controller/training.controller");
 const authorize = require("./middlewares/authorize.middleware");
-const { BlobServiceClient } = require("@azure/storage-blob");
 const uploadToAzure = require("./utils/uploadToAzure");
 
 dotenv.config();
@@ -35,13 +33,13 @@ app.use(bodyParser.json());
 
 app.use(bodyParser.urlencoded({ extended: true }));
 
-const originWhitelist = "https://orange-moss-004688710.5.azurestaticapps.net/";
+// const originWhitelist = "https://orange-moss-004688710.5.azurestaticapps.net/";
 // const originWhitelist = "http://localhost:5713/";
 
 const corsOptions = {
   optionsSuccessStatus: 200,
   origin: (origin, callback) => {
-    if (originWhitelist.indexOf(origin) !== -1 || !origin) callback(null, true);
+    if (dotenv.config.originWhitelist.indexOf(origin) !== -1 || !origin) callback(null, true);
     else callback(new Error("Not allowed by CORS"));
   },
 };
@@ -51,10 +49,6 @@ app.options("*", cors());
 app.get("/", (req, res) => {
   res.json({ message: "Server is running" });
 });
-
-const blobServiceClient = BlobServiceClient.fromConnectionString(
-  "DefaultEndpointsProtocol=https;AccountName=emrtraining;AccountKey=DrhWqb3BfWBzmTuPxrvuW/iQYTHo5aPmfLZksnNmgQeb01O2owx4l1V2g86YLYI/mJqF0MM9aC+++AStRlw2eg==;EndpointSuffix=core.windows.net"
-);
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });

@@ -10,9 +10,7 @@ const router = express.Router();
 
 const upload = multer({ dest: "uploads/" });
 
-const blobServiceClient = BlobServiceClient.fromConnectionString(
-  "DefaultEndpointsProtocol=https;AccountName=emrtraining;AccountKey=DrhWqb3BfWBzmTuPxrvuW/iQYTHo5aPmfLZksnNmgQeb01O2owx4l1V2g86YLYI/mJqF0MM9aC+++AStRlw2eg==;EndpointSuffix=core.windows.net"
-);
+const blobServiceClient = BlobServiceClient.fromConnectionString(process.env.AZURE_KEY);
 const containerClient = blobServiceClient.getContainerClient("emr-training");
 
 router
