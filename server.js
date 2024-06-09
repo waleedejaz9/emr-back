@@ -39,7 +39,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 const corsOptions = {
   optionsSuccessStatus: 200,
   origin: (origin, callback) => {
-    if (dotenv.config.originWhitelist.indexOf(origin) !== -1 || !origin) callback(null, true);
+    if (process.env.WHITELIST.indexOf(origin) !== -1 || !origin) callback(null, true);
     else callback(new Error("Not allowed by CORS"));
   },
 };
