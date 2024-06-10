@@ -29,9 +29,7 @@ const SurveyController = {
     try {
       const { user } = req;
       const surveyId = req.params.id;
-      const [survey] = await Survey.find({ _id: surveyId, company: user.company })
-        .populate("questions")
-        .populate("createdBy");
+      const [survey] = await Survey.find({ _id: surveyId }).populate("questions").populate("createdBy");
       if (!survey) {
         return res.status(400).json({ success: false, message: "survey not found." });
       }

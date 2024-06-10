@@ -9,6 +9,7 @@ const ModuleController = {
   async getModules(req, res) {
     try {
       const { user } = req;
+      // const superAdminId = new mongoose.Types.ObjectId("662c05660a775f5b72ebe9ba");
       const modules = await Module.find({ company: user.company })
         .populate("questions")
         .populate("type")
@@ -24,7 +25,7 @@ const ModuleController = {
       const { user } = req;
       const moduleId = req.params.moduleId;
 
-      const [module] = await Module.find({ _id: moduleId, company: user.company })
+      const [module] = await Module.find({ _id: moduleId })
         .populate("questions")
         .populate("type")
         .populate("createdBy");

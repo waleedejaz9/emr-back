@@ -180,15 +180,17 @@ const AuthController = {
       await session.commitTransaction();
       session.endSession();
 
+      await User.updateOne({ _id: userCreated[0]._id }, { $set: { company: company[0]._id } });
+
       const permissionDetail = permission.map((perm) => ({
         ...perm,
-        roleId: userCreated[0]._id,
-        userId: userCreated[0].roles,
+        userId: userCreated[0]._id,
+        roleId: userCreated[0].roles,
       }));
 
       const permissionData = await Permission.insertMany(permissionDetail);
 
-      await User.updateOne({ _id: userCreated[0]._id }, { $set: { company: company[0]._id } });
+      console.log({ permissionData });
 
       res.status(200).json({ success: true, company, permissions: permissionData });
     } catch (error) {
