@@ -168,14 +168,6 @@ const AuthController = {
       // Update user with company information
       await User.updateOne({ _id: userCreated._id }, { $set: { company: company._id } }).session(session);
 
-      const permissionDetail = permission.map((perm) => ({
-        ...perm,
-        roleId: userCreated._id,
-        userId: userCreated._id,
-      }));
-
-      const permissionData = await Permission.insertMany(permissionDetail, { session });
-
       const mailOptions = {
         from: { name: "EMR Test", address: "junaidmalikk797@gmail.com" },
         to: eaEmail,
@@ -187,6 +179,14 @@ const AuthController = {
 
       await session.commitTransaction();
       session.endSession();
+
+      const permissionDetail = permission.map((perm) => ({
+        ...perm,
+        roleId: userCreated[0]._id,
+        userId: userCreated[0].roles,
+      }));
+
+      const permissionData = await Permission.insertMany(permissionDetail);
 
       await User.updateOne({ _id: userCreated[0]._id }, { $set: { company: company[0]._id } });
 
