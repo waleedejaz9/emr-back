@@ -40,6 +40,39 @@ const generateRandomPassword = () => {
 };
 
 const AuthController = {
+  async getUserCountByRoles(req, res) {
+    try {
+      const result = await Role.aggregate([
+        {
+          $match: {
+            role: { $ne: "BG Admin" }, // Exclude roles with the name "BG Admin"
+          },
+        },
+        {
+          $lookup: {
+            from: "users", // the name of the User collection in MongoDB
+            localField: "_id",
+            foreignField: "roles",
+            as: "users",
+          },
+        },
+        {
+          $project: {
+            role: "$role",
+            count: { $size: "$users" },
+          },
+        },
+        {
+          $sort: { role: 1 }, // optional: sorts roles alphabetically
+        },
+      ]);
+
+      return res.status(200).json({ success: true, data: result });
+    } catch (error) {
+      console.error("Error in getting user count by roles: ", error);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  },
   async createMhc(req, res) {
     const session = await mongoose.startSession();
     session.startTransaction();

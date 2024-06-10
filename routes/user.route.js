@@ -9,6 +9,7 @@ const upload = multer({ storage: storage });
 const router = express.Router();
 
 router
+  .get("/getDashboardCount", [authorize()], AuthController.getUserCountByRoles)
   .get("/getAllUser", [authorize()], AuthController.getAllUser)
   .get("/userById/:userId", [authorize()], AuthController.getUserById)
   .post("/createMhc", [authorize()], upload.any(), AuthController.createMhc)
