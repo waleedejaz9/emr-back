@@ -91,63 +91,62 @@ const SurveyController = {
     }
   },
   async createQuestions(req, res) {
-    let session = await mongoose.startSession();
-    session.startTransaction();
+    const session = await mongoose.startSession();
     try {
-      const surveyId = req.params.surveyId;
-      const { user } = req;
+      await session.withTransaction(async () => {
+        const surveyId = req.params.surveyId;
+        const { user } = req;
+        const { assignTo, questions } = req.body;
 
-      const { assignTo, questions } = req.body;
+        // Validate user
+        if (!user) {
+          throw new Error("User not found.");
+        }
 
-      const survey = await Survey.findById(surveyId);
-      const usersAssign = await User.find({ _id: { $in: assignTo } });
+        // Fetch survey and validate
+        const survey = await Survey.findById(surveyId).session(session);
+        if (!survey) {
+          throw new Error("Survey not found.");
+        }
 
-      if (usersAssign.length !== assignTo.length) {
-        return res.status(400).json({ success: false, message: "One or more assigned users not found." });
-      }
-      if (!user) {
-        return res.status(400).json({ success: false, message: "User not found." });
-      }
+        // Fetch users to assign and validate
+        const usersAssign = await User.find({ _id: { $in: assignTo } }).session(session);
+        if (usersAssign.length !== assignTo.length) {
+          throw new Error("One or more assigned users not found.");
+        }
 
-      if (!survey) {
-        return res.status(400).json({ success: false, message: "survey not found." });
-      }
+        // Create questions
+        const createdQuestions = questions.map((question) => ({
+          surveyId,
+          assignTo,
+          statement: question.statement,
+          type: question?.type,
+          required: question?.required,
+          options: question?.options,
+        }));
 
-      const createdQuestions = questions.map((question) => ({
-        surveyId,
-        assignTo: assignTo,
-        statement: question.statement,
-        type: question?.type,
-        required: question?.required,
-        options: question?.options,
-      }));
-      const createdQuestionDocuments = await QuestionSurvey.create(createdQuestions, { session });
+        const createdQuestionDocuments = await QuestionSurvey.create(createdQuestions, { session });
+        const createdQuestionIds = createdQuestionDocuments.map((question) => question._id);
 
-      const createdQuestionIds = createdQuestionDocuments.map((question) => question._id);
+        // Update survey with new questions
+        survey.questions = survey.questions.concat(createdQuestionIds);
+        survey.assignTo = assignTo;
+        survey.company = usersAssign[0].company;
+        await survey.save({ session });
 
-      survey.questions = survey.questions.concat(createdQuestionIds);
-      survey.assignTo = assignTo;
-      survey.company = usersAssign[0].company;
+        const allQuestions = await QuestionSurvey.find({ surveyId }).session(session);
 
-      await survey.save({ session });
-
-      await session.commitTransaction();
-      session.endSession();
-
-      const allQuestions = await QuestionSurvey.find({ surveyId });
-
-      return res.status(200).json({
-        success: true,
-        message: "Questions created successfully.",
-        length: allQuestions.length,
-        data: allQuestions,
+        res.status(200).json({
+          success: true,
+          message: "Questions created successfully.",
+          length: allQuestions.length,
+          data: allQuestions,
+        });
       });
     } catch (err) {
-      if (session) {
-        await session.abortTransaction();
-        session.endSession();
-      }
-      return res.status(500).json({ success: false, message: err.message });
+      res.status(500).json({ success: false, message: err.message });
+    } finally {
+      session.endSession();
     }
   },
   async createAnswer(req, res) {

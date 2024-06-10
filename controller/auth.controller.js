@@ -67,6 +67,10 @@ const AuthController = {
         },
       ]);
 
+      const mhcCount = await Company.find();
+
+      result.push({ role: "MHC", count: mhcCount.length });
+
       return res.status(200).json({ success: true, data: result });
     } catch (error) {
       console.error("Error in getting user count by roles: ", error);
@@ -252,8 +256,19 @@ const AuthController = {
   },
   async getAllUser(req, res) {
     try {
-      const users = await User.find().populate("roles");
-      // .populate("associatedWith");
+      const { user } = req;
+      const superAdminId = new mongoose.Types.ObjectId("662c05660a775f5b72ebe9ba");
+
+      let users;
+      if (user.roles.equals(superAdminId)) {
+        users = await User.find({ roles: { $ne: superAdminId } }).populate("roles");
+      } else {
+        users = await User.find({
+          company: user.company,
+          roles: { $ne: superAdminId },
+        }).populate("roles");
+      }
+
       return res.status(200).json({ success: true, length: users.length, data: users });
     } catch (error) {
       return res.status(500).json({ success: false, message: error.message });
