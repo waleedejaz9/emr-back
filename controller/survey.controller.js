@@ -29,7 +29,9 @@ const SurveyController = {
     try {
       const { user } = req;
       const surveyId = req.params.id;
-      const [survey] = await Survey.find({ _id: surveyId }).populate("questions").populate("createdBy");
+      const [survey] = await Survey.find({ _id: surveyId, company: user.company })
+        .populate("questions")
+        .populate("createdBy");
       if (!survey) {
         return res.status(400).json({ success: false, message: "survey not found." });
       }
@@ -91,62 +93,63 @@ const SurveyController = {
     }
   },
   async createQuestions(req, res) {
-    const session = await mongoose.startSession();
+    let session = await mongoose.startSession();
+    session.startTransaction();
     try {
-      await session.withTransaction(async () => {
-        const surveyId = req.params.surveyId;
-        const { user } = req;
-        const { assignTo, questions } = req.body;
+      const surveyId = req.params.surveyId;
+      const { user } = req;
 
-        // Validate user
-        if (!user) {
-          throw new Error("User not found.");
-        }
+      const { assignTo, questions } = req.body;
 
-        // Fetch survey and validate
-        const survey = await Survey.findById(surveyId).session(session);
-        if (!survey) {
-          throw new Error("Survey not found.");
-        }
+      const survey = await Survey.findById(surveyId);
+      const usersAssign = await User.find({ _id: { $in: assignTo } });
 
-        // Fetch users to assign and validate
-        const usersAssign = await User.find({ _id: { $in: assignTo } }).session(session);
-        if (usersAssign.length !== assignTo.length) {
-          throw new Error("One or more assigned users not found.");
-        }
+      if (usersAssign.length !== assignTo.length) {
+        return res.status(400).json({ success: false, message: "One or more assigned users not found." });
+      }
+      if (!user) {
+        return res.status(400).json({ success: false, message: "User not found." });
+      }
 
-        // Create questions
-        const createdQuestions = questions.map((question) => ({
-          surveyId,
-          assignTo,
-          statement: question.statement,
-          type: question?.type,
-          required: question?.required,
-          options: question?.options,
-        }));
+      if (!survey) {
+        return res.status(400).json({ success: false, message: "survey not found." });
+      }
 
-        const createdQuestionDocuments = await QuestionSurvey.create(createdQuestions, { session });
-        const createdQuestionIds = createdQuestionDocuments.map((question) => question._id);
+      const createdQuestions = questions.map((question) => ({
+        surveyId,
+        assignTo: assignTo,
+        statement: question.statement,
+        type: question?.type,
+        required: question?.required,
+        options: question?.options,
+      }));
+      const createdQuestionDocuments = await QuestionSurvey.create(createdQuestions, { session });
 
-        // Update survey with new questions
-        survey.questions = survey.questions.concat(createdQuestionIds);
-        survey.assignTo = assignTo;
-        survey.company = usersAssign[0].company;
-        await survey.save({ session });
+      const createdQuestionIds = createdQuestionDocuments.map((question) => question._id);
 
-        const allQuestions = await QuestionSurvey.find({ surveyId }).session(session);
+      survey.questions = survey.questions.concat(createdQuestionIds);
+      survey.assignTo = assignTo;
+      survey.company = usersAssign[0].company;
 
-        res.status(200).json({
-          success: true,
-          message: "Questions created successfully.",
-          length: allQuestions.length,
-          data: allQuestions,
-        });
+      await survey.save({ session });
+
+      await session.commitTransaction();
+      session.endSession();
+
+      const allQuestions = await QuestionSurvey.find({ surveyId });
+
+      return res.status(200).json({
+        success: true,
+        message: "Questions created successfully.",
+        length: allQuestions.length,
+        data: allQuestions,
       });
     } catch (err) {
-      res.status(500).json({ success: false, message: err.message });
-    } finally {
-      session.endSession();
+      if (session) {
+        await session.abortTransaction();
+        session.endSession();
+      }
+      return res.status(500).json({ success: false, message: err.message });
     }
   },
   async createAnswer(req, res) {

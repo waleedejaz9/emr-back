@@ -69,16 +69,9 @@ var userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const imageSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  imagePath: { type: String, required: true },
-});
-
-const User = mongoose.model("user", userSchema);
-
 const companySchema = new mongoose.Schema(
   {
-    companyName: { type: String, required: true, unique: true },
+    companyName: { type: String, required: true },
     companyOfficerName: { type: String },
     department: { type: String },
     primaryEmail: { type: String },
@@ -94,15 +87,16 @@ const companySchema = new mongoose.Schema(
     },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     ceo: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    eaId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: User,
-    },
-    profilePicture: { type: String, required: true },
   },
-
   { timestamps: true }
 );
+
+const imageSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  imagePath: { type: String, required: true },
+});
+
+const User = mongoose.model("user", userSchema);
 const Role = mongoose.model("Role", roleSchema);
 const Permission = mongoose.model("Permission", permissionSchema);
 const Company = mongoose.model("Company", companySchema);

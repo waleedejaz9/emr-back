@@ -9,7 +9,6 @@ const ModuleController = {
   async getModules(req, res) {
     try {
       const { user } = req;
-      // const superAdminId = new mongoose.Types.ObjectId("662c05660a775f5b72ebe9ba");
       const modules = await Module.find({ company: user.company })
         .populate("questions")
         .populate("type")
@@ -25,7 +24,7 @@ const ModuleController = {
       const { user } = req;
       const moduleId = req.params.moduleId;
 
-      const [module] = await Module.find({ _id: moduleId })
+      const [module] = await Module.find({ _id: moduleId, company: user.company })
         .populate("questions")
         .populate("type")
         .populate("createdBy");
@@ -165,62 +164,62 @@ const ModuleController = {
     }
   },
   async createQuestions(req, res) {
-    const session = await mongoose.startSession();
+    let session = await mongoose.startSession();
+    session.startTransaction();
     try {
-      await session.withTransaction(async () => {
-        const moduleId = req.params.moduleId;
-        const { user } = req;
-        const { assignTo, questions } = req.body;
+      const moduleId = req.params.moduleId;
+      const { user } = req;
 
-        // Validate user
-        if (!user) {
-          throw new Error("User not found.");
-        }
+      const { assignTo, questions } = req.body;
 
-        // Fetch module and validate
-        const module = await Module.findById(moduleId).session(session);
-        if (!module) {
-          throw new Error("Module not found.");
-        }
+      const module = await Module.findById(moduleId);
+      const usersAssign = await User.find({ _id: { $in: assignTo } });
 
-        // Fetch users to assign and validate
-        const usersAssign = await User.find({ _id: { $in: assignTo } }).session(session);
-        if (usersAssign.length !== assignTo.length) {
-          throw new Error("One or more assigned users not found.");
-        }
+      if (usersAssign.length !== assignTo.length) {
+        return res.status(400).json({ success: false, message: "One or more assigned users not found." });
+      }
 
-        // Create questions
-        const createdQuestions = questions.map((question) => ({
-          moduleId,
-          assignTo,
-          statement: question.statement,
-          type: question?.type,
-          required: question?.required,
-          options: question?.options,
-        }));
+      if (!user) {
+        return res.status(400).json({ success: false, message: "User not found." });
+      }
 
-        const createdQuestionDocuments = await Question.create(createdQuestions, { session });
-        const createdQuestionIds = createdQuestionDocuments.map((question) => question._id);
+      if (!module) {
+        return res.status(400).json({ success: false, message: "Module not found." });
+      }
 
-        // Update module with new questions
-        module.questions = module.questions.concat(createdQuestionIds);
-        module.assignTo = assignTo;
-        module.company = usersAssign[0].company;
-        await module.save({ session });
+      const createdQuestions = questions.map((question) => ({
+        moduleId,
+        assignTo: assignTo,
+        statement: question.statement,
+        type: question?.type,
+        required: question?.required,
+        options: question?.options,
+      }));
+      const createdQuestionDocuments = await Question.create(createdQuestions, { session });
 
-        const allQuestions = await Question.find({ moduleId }).session(session);
+      const createdQuestionIds = createdQuestionDocuments.map((question) => question._id);
+      module.questions = module.questions.concat(createdQuestionIds);
+      module.assignTo = assignTo;
+      module.company = usersAssign[0].company;
+      await module.save({ session });
 
-        res.status(200).json({
-          success: true,
-          message: "Questions created successfully.",
-          length: allQuestions.length,
-          data: allQuestions,
-        });
+      await session.commitTransaction();
+      session.endSession();
+
+      const allQuestions = await Question.find({ moduleId });
+
+      return res.status(200).json({
+        success: true,
+        message: "Questions created successfully.",
+        length: allQuestions.length,
+        data: allQuestions,
       });
     } catch (err) {
-      res.status(500).json({ success: false, message: err.message });
-    } finally {
-      session.endSession();
+      if (session) {
+        await session.abortTransaction();
+        session.endSession();
+      }
+      return res.status(500).json({ success: false, message: err.message });
     }
   },
   async createAnswer(req, res) {

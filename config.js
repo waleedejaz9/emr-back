@@ -13,8 +13,6 @@ const config = {
   port: process.env.PORT,
   env: process.env.NODE_ENV,
   characters: process.env.CHARACTERS,
-  originWhitelist: process.env.WHITELIST,
-  AZURE_KEY: process.env.AZURE_KEY,
 
   appUrl: process.env.APP_URL,
   baseUrl: process.env.BASE_URL,
