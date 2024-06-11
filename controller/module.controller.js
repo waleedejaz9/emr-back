@@ -9,6 +9,7 @@ const ModuleController = {
   async getModules(req, res) {
     try {
       const { user } = req;
+      // const superAdminId = new mongoose.Types.ObjectId("662c05660a775f5b72ebe9ba");
       const modules = await Module.find({ company: user.company })
         .populate("questions")
         .populate("type")
@@ -24,7 +25,7 @@ const ModuleController = {
       const { user } = req;
       const moduleId = req.params.moduleId;
 
-      const [module] = await Module.find({ _id: moduleId, company: user.company })
+      const [module] = await Module.find({ _id: moduleId })
         .populate("questions")
         .populate("type")
         .populate("createdBy");
@@ -164,62 +165,62 @@ const ModuleController = {
     }
   },
   async createQuestions(req, res) {
-    let session = await mongoose.startSession();
-    session.startTransaction();
+    const session = await mongoose.startSession();
     try {
-      const moduleId = req.params.moduleId;
-      const { user } = req;
+      await session.withTransaction(async () => {
+        const moduleId = req.params.moduleId;
+        const { user } = req;
+        const { assignTo, questions } = req.body;
 
-      const { assignTo, questions } = req.body;
+        // Validate user
+        if (!user) {
+          throw new Error("User not found.");
+        }
 
-      const module = await Module.findById(moduleId);
-      const usersAssign = await User.find({ _id: { $in: assignTo } });
+        // Fetch module and validate
+        const module = await Module.findById(moduleId).session(session);
+        if (!module) {
+          throw new Error("Module not found.");
+        }
 
-      if (usersAssign.length !== assignTo.length) {
-        return res.status(400).json({ success: false, message: "One or more assigned users not found." });
-      }
+        // Fetch users to assign and validate
+        const usersAssign = await User.find({ _id: { $in: assignTo } }).session(session);
+        if (usersAssign.length !== assignTo.length) {
+          throw new Error("One or more assigned users not found.");
+        }
 
-      if (!user) {
-        return res.status(400).json({ success: false, message: "User not found." });
-      }
+        // Create questions
+        const createdQuestions = questions.map((question) => ({
+          moduleId,
+          assignTo,
+          statement: question.statement,
+          type: question?.type,
+          required: question?.required,
+          options: question?.options,
+        }));
 
-      if (!module) {
-        return res.status(400).json({ success: false, message: "Module not found." });
-      }
+        const createdQuestionDocuments = await Question.create(createdQuestions, { session });
+        const createdQuestionIds = createdQuestionDocuments.map((question) => question._id);
 
-      const createdQuestions = questions.map((question) => ({
-        moduleId,
-        assignTo: assignTo,
-        statement: question.statement,
-        type: question?.type,
-        required: question?.required,
-        options: question?.options,
-      }));
-      const createdQuestionDocuments = await Question.create(createdQuestions, { session });
+        // Update module with new questions
+        module.questions = module.questions.concat(createdQuestionIds);
+        module.assignTo = assignTo;
+        module.company = usersAssign[0].company;
+        await module.save({ session });
 
-      const createdQuestionIds = createdQuestionDocuments.map((question) => question._id);
-      module.questions = module.questions.concat(createdQuestionIds);
-      module.assignTo = assignTo;
-      module.company = usersAssign[0].company;
-      await module.save({ session });
+        const allQuestions = await Question.find({ moduleId }).session(session);
 
-      await session.commitTransaction();
-      session.endSession();
-
-      const allQuestions = await Question.find({ moduleId });
-
-      return res.status(200).json({
-        success: true,
-        message: "Questions created successfully.",
-        length: allQuestions.length,
-        data: allQuestions,
+        res.status(200).json({
+          success: true,
+          message: "Questions created successfully.",
+          length: allQuestions.length,
+          data: allQuestions,
+        });
       });
     } catch (err) {
-      if (session) {
-        await session.abortTransaction();
-        session.endSession();
-      }
-      return res.status(500).json({ success: false, message: err.message });
+      res.status(500).json({ success: false, message: err.message });
+    } finally {
+      session.endSession();
     }
   },
   async createAnswer(req, res) {

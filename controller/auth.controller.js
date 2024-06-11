@@ -8,6 +8,7 @@ const authorize = require("../middlewares/authorize.middleware");
 const nodemailer = require("nodemailer");
 const mongoose = require("mongoose");
 const path = require("path");
+const uploadToAzure = require("../utils/uploadToAzure");
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -39,7 +40,47 @@ const generateRandomPassword = () => {
 };
 
 const AuthController = {
+  async getUserCountByRoles(req, res) {
+    try {
+      const result = await Role.aggregate([
+        {
+          $match: {
+            role: { $ne: "BG Admin" }, // Exclude roles with the name "BG Admin"
+          },
+        },
+        {
+          $lookup: {
+            from: "users", // the name of the User collection in MongoDB
+            localField: "_id",
+            foreignField: "roles",
+            as: "users",
+          },
+        },
+        {
+          $project: {
+            role: "$role",
+            count: { $size: "$users" },
+          },
+        },
+        {
+          $sort: { role: 1 }, // optional: sorts roles alphabetically
+        },
+      ]);
+
+      const mhcCount = await Company.find();
+
+      result.push({ role: "MHC", count: mhcCount.length });
+
+      return res.status(200).json({ success: true, data: result });
+    } catch (error) {
+      console.error("Error in getting user count by roles: ", error);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  },
   async createMhc(req, res) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
       const { user } = req;
       const {
@@ -58,66 +99,113 @@ const AuthController = {
         eaPhoneNumber,
       } = req.body;
 
+      let permission = [];
+      if (req.body.permission) {
+        permission = JSON.parse(req.body.permission);
+      }
+
       const targetRoleId = new mongoose.Types.ObjectId("662c05660a775f5b72ebe9ba");
       if (!user.roles.equals(targetRoleId)) {
         return res.status(401).json({ success: false, message: "Only Blue Goat can create MHC" });
       }
+
       const existingUser = await Company.findOne({ primaryEmail });
       if (existingUser) {
         return res.status(400).json({ message: "Company with this email already exists" });
       }
+
       const eaExistingUser = await User.findOne({ email: eaEmail });
       if (eaExistingUser) {
         return res.status(400).json({ message: "User with EA email already exists" });
       }
 
-      const roleDocument = await Role.findOne({ roleId: 14 });
-
+      const roleDocument = await Role.findOne({ roleId: 14 }).session(session);
       const randomPassword = generateRandomPassword();
-
       const hashedPassword = await BcryptUtil.getHash({ data: randomPassword });
 
-      const company = await Company.create({
-        companyName,
-        companyOfficerName,
-        department,
-        primaryEmail,
-        secondaryEmail,
-        mobilePhone,
-        companyPhoneNumber,
-        extension,
-        companyAddress,
-        billingAddress,
-        createdBy: user._id,
-      });
+      let fileUrl = null;
+      if (req.files) {
+        const profilePictureFile = req.files.find((file) => file.fieldname === "profilePicture");
+        if (profilePictureFile) {
+          fileUrl = await uploadToAzure(profilePictureFile);
+        }
+      }
 
-      const userCreated = await User.create({
-        firstName: eaName,
-        lastName: "test",
-        roles: roleDocument._id,
-        password: hashedPassword,
-        company: company._id,
-        phoneNumber: eaPhoneNumber,
-        email: eaEmail,
-        status: false,
-      });
+      const company = await Company.create(
+        [
+          {
+            companyName,
+            companyOfficerName,
+            department,
+            primaryEmail,
+            secondaryEmail,
+            mobilePhone,
+            companyPhoneNumber,
+            extension,
+            companyAddress,
+            billingAddress,
+            createdBy: user._id,
+            profilePicture: fileUrl,
+          },
+        ],
+        { session }
+      );
+
+      const userCreated = await User.create(
+        [
+          {
+            firstName: eaName,
+            lastName: "test",
+            roles: roleDocument._id,
+            password: hashedPassword,
+            company: "664469e657eee5c59802d730",
+            phoneNumber: eaPhoneNumber,
+            email: eaEmail,
+            status: false,
+          },
+        ],
+        { session }
+      );
+
+      await Company.updateOne({ _id: company._id }, { $set: { eaId: userCreated._id } }).session(session);
+
+      // Update user with company information
+      await User.updateOne({ _id: userCreated._id }, { $set: { company: company._id } }).session(session);
+
       const mailOptions = {
-        from: { name: "EMR Test", address: "junaidmalikk797@gmail.com" }, // sender address
+        from: { name: "EMR Test", address: "junaidmalikk797@gmail.com" },
         to: eaEmail,
         subject: "Welcome to EMR",
-        html: `<p>Hello ${eaName},</p><p>Your account has been created successfully.</p><p>Email: ${eaEmail}</p><p>Password: ${randomPassword}</p>`, // HTML body
+        html: `<p>Hello ${eaName},</p><p>Your account has been created successfully.</p><p>Email: ${eaEmail}</p><p>Password: ${randomPassword}</p>`,
       };
 
       await sendEmail(transporter, mailOptions);
 
-      res.status(200).json({ success: true, user: userCreated, company: company });
+      await session.commitTransaction();
+      session.endSession();
+
+      await User.updateOne({ _id: userCreated[0]._id }, { $set: { company: company[0]._id } });
+
+      const permissionDetail = permission.map((perm) => ({
+        ...perm,
+        userId: userCreated[0]._id,
+        roleId: userCreated[0].roles,
+      }));
+
+      const permissionData = await Permission.insertMany(permissionDetail);
+
+      console.log({ permissionData });
+
+      res.status(200).json({ success: true, company, permissions: permissionData });
     } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(500).json({ success: false, message: error.message });
     }
   },
   async getAllMhc(req, res) {
     try {
-      const users = await Company.find();
+      const users = await Company.find().populate("eaId");
       return res.status(200).json({
         success: true,
         length: users.length,
@@ -130,7 +218,7 @@ const AuthController = {
   async getMhcById(req, res) {
     try {
       const { id } = req.params;
-      const mhc = await Company.findById(id);
+      const mhc = await Company.findById(id).populate("eaId");
 
       if (!mhc) {
         return res.status(404).json({ success: false, message: "MHC not found" });
@@ -144,7 +232,16 @@ const AuthController = {
   async updateMhc(req, res) {
     try {
       const { id } = req.params;
-      const updateData = req.body;
+      const updateData = { ...req.body };
+
+      // Check if a file is uploaded
+      if (req.files && req.files.length > 0) {
+        const profilePictureFile = req.files.find((file) => file.fieldname === "profilePicture");
+        if (profilePictureFile) {
+          const fileUrl = await uploadToAzure(profilePictureFile);
+          updateData.profilePicture = fileUrl; // Add the file URL to the update data
+        }
+      }
 
       const mhc = await Company.findByIdAndUpdate(id, updateData, { new: true });
 
@@ -159,7 +256,19 @@ const AuthController = {
   },
   async getAllUser(req, res) {
     try {
-      const users = await User.find().populate("roles").populate("associatedWith");
+      const { user } = req;
+      const superAdminId = new mongoose.Types.ObjectId("662c05660a775f5b72ebe9ba");
+
+      let users;
+      if (user.roles.equals(superAdminId)) {
+        users = await User.find({ roles: { $ne: superAdminId } }).populate("roles");
+      } else {
+        users = await User.find({
+          company: user.company,
+          roles: { $ne: superAdminId },
+        }).populate("roles");
+      }
+
       return res.status(200).json({ success: true, length: users.length, data: users });
     } catch (error) {
       return res.status(500).json({ success: false, message: error.message });
@@ -447,7 +556,7 @@ const AuthController = {
   },
   async updateUser(req, res) {
     try {
-      const userId = req.params.userId;
+      const userId = req.params.id;
       const {
         firstName,
         lastName,
@@ -468,16 +577,16 @@ const AuthController = {
         dateOfBirth,
         status,
       } = req.body;
+      const { user } = req;
 
       const userDetail = await User.findById(userId);
 
       if (!userDetail) {
         return res.status(404).json({ success: false, message: "userDetail not found." });
       }
-
-      const associatedCompany = await Company.findOne({ _id: company });
+      const associatedCompany = await Company.findOne({ _id: userDetail.company });
       if (!associatedCompany) {
-        res.status(400).json({ success: false, message: "No MHC found" });
+        return res.status(400).json({ success: false, message: "No MHC found" });
       }
 
       userDetail.firstName = firstName || userDetail.firstName;
