@@ -314,8 +314,9 @@ const AuthController = {
 
       const existingProfileByEmail = await User.findOne({ email, isDeleted: false });
 
-      if (existingProfileByEmail)
+      if (existingProfileByEmail) {
         return res.status(400).json({ success: false, message: "Email already exists." });
+      }
 
       const roleDocument = await Role.findOne({ roleId });
 
@@ -324,17 +325,12 @@ const AuthController = {
       const MHCAdminId = new mongoose.Types.ObjectId("662c05970a775f5b72ebe9bd");
 
       if (user.roles.equals(superAdminId)) {
-      } else if (user.roles.equals(EAId)) {
+        // Super Admin logic if needed
+      } else if (user.roles.equals(EAId) || user.roles.equals(MHCAdminId)) {
         if (!user.company.equals(company)) {
           return res
             .status(401)
             .json({ success: false, message: "You cannot assign a company other than your own." });
-        }
-      } else if (user.roles.equals(MHCAdminId)) {
-        if (!user.company.equals(company)) {
-          return res
-            .status(401)
-            .json({ success: false, message: "You cannot assign a company other than your own" });
         }
       } else {
         return res.status(401).json({ success: false, message: "Unauthorized." });
@@ -342,12 +338,14 @@ const AuthController = {
 
       const associatedCompany = await Company.findOne({ _id: company });
       if (!associatedCompany) {
-        res.status(400).json({ success: false, message: "No MHC found" });
+        return res.status(400).json({ success: false, message: "No MHC found" });
       }
 
       if (!roleDocument) {
         throw new Error("Role does not exist");
       }
+
+      
 
       const hashedPassword = await BcryptUtil.getHash({ data: password });
 
@@ -386,6 +384,7 @@ const AuthController = {
       const token = jwt.sign({ _id: userCreated._id }, config.jwtSecret, { expiresIn: config.jwtExpiresIn });
       const data = userCreated.toObject();
       delete data.password;
+
       const mailOptions = {
         from: { name: "EMR Test", address: "junaidmalikk797@gmail.com" }, // sender address
         to: email,
@@ -397,7 +396,10 @@ const AuthController = {
 
       return res.status(201).json({ success: true, token, user: data, permission: permissionData });
     } catch (err) {
-      return res.status(400).json({ success: false, message: err.message });
+      if (!res.headersSent) {
+        return res.status(400).json({ success: false, message: err.message });
+      }
+      console.error("Error occurred after headers were sent:", err);
     }
   },
   async signIn(req, res) {

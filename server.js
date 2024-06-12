@@ -34,12 +34,12 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // const originWhitelist = "https://orange-moss-004688710.5.azurestaticapps.net/";
-// const originWhitelist = "http://localhost:5713/";
+const originWhitelist = "http://localhost:3000/";
 
 const corsOptions = {
   optionsSuccessStatus: 200,
   origin: (origin, callback) => {
-    if (process.env.WHITELIST.indexOf(origin) !== -1 || !origin) callback(null, true);
+    if (originWhitelist.indexOf(origin) !== -1 || !origin) callback(null, true);
     else callback(new Error("Not allowed by CORS"));
   },
 };
@@ -82,7 +82,6 @@ app.post("/api/uploadImage/:userId", upload.single("image"), async (req, res) =>
 
     // const filePath = path.join("uploads", req.file.filename);
     const fileUrl = await uploadToAzure(req.file);
-    console.log({ fileUrl });
     const imageCreated = await Image.findOne({ userId });
     if (imageCreated) {
       return res.status(400).json({ error: "Image already created. Update the image" });

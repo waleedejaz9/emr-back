@@ -182,6 +182,10 @@ const ModuleController = {
         if (!module) {
           throw new Error("Module not found.");
         }
+        console.log(assignTo.length < 1);
+        if (assignTo.length < 1) {
+          throw new Error("Module must be assigned to a user");
+        }
 
         // Fetch users to assign and validate
         const usersAssign = await User.find({ _id: { $in: assignTo } }).session(session);
