@@ -34,12 +34,12 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // const originWhitelist = "https://orange-moss-004688710.5.azurestaticapps.net/";
-const originWhitelist = "http://localhost:3000/";
+// const originWhitelist = "http://localhost:3000/";
 
 const corsOptions = {
   optionsSuccessStatus: 200,
   origin: (origin, callback) => {
-    if (originWhitelist.indexOf(origin) !== -1 || !origin) callback(null, true);
+    if (process.env.WHITELIST.indexOf(origin) !== -1 || !origin) callback(null, true);
     else callback(new Error("Not allowed by CORS"));
   },
 };
