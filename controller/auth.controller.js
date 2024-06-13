@@ -104,7 +104,7 @@ const AuthController = {
         permission = JSON.parse(req.body.permission);
       }
 
-      const targetRoleId = new mongoose.Types.ObjectId("");
+      const targetRoleId = new mongoose.Types.ObjectId("666761113814857c7bd01542");
       if (!user.roles.equals(targetRoleId)) {
         return res.status(401).json({ success: false, message: "Only Blue Goat can create MHC" });
       }
