@@ -104,7 +104,7 @@ const AuthController = {
         permission = JSON.parse(req.body.permission);
       }
 
-      const targetRoleId = new mongoose.Types.ObjectId("666761113814857c7bd01542");
+      const targetRoleId = new mongoose.Types.ObjectId("662c05660a775f5b72ebe9ba");
       if (!user.roles.equals(targetRoleId)) {
         return res.status(401).json({ success: false, message: "Only Blue Goat can create MHC" });
       }
@@ -257,7 +257,7 @@ const AuthController = {
   async getAllUser(req, res) {
     try {
       const { user } = req;
-      const superAdminId = new mongoose.Types.ObjectId("666761113814857c7bd01542");
+      const superAdminId = new mongoose.Types.ObjectId("662c05660a775f5b72ebe9ba");
 
       let users;
       if (user.roles.equals(superAdminId)) {
@@ -320,7 +320,7 @@ const AuthController = {
 
       const roleDocument = await Role.findOne({ roleId });
 
-      const superAdminId = new mongoose.Types.ObjectId("666761113814857c7bd01542");
+      const superAdminId = new mongoose.Types.ObjectId("662c05660a775f5b72ebe9ba");
       const EAId = new mongoose.Types.ObjectId("663536bb38d98c825d30d4c3");
       const MHCAdminId = new mongoose.Types.ObjectId("662c05970a775f5b72ebe9bd");
 
@@ -627,7 +627,7 @@ const AuthController = {
     try {
       const { user } = req;
       const roleId = req.params.roleId;
-      const targetRoleId = new mongoose.Types.ObjectId("666761113814857c7bd01542");
+      const targetRoleId = new mongoose.Types.ObjectId("662c05660a775f5b72ebe9ba");
 
       if (user.roles.equals(targetRoleId)) {
         const users = await User.find({ roles: roleId }).populate("roles").populate("company");
@@ -655,7 +655,7 @@ const AuthController = {
   async signUpRole(req, res) {
     try {
       const { user } = req;
-      const targetRoleId = new mongoose.Types.ObjectId("666761113814857c7bd01542");
+      const targetRoleId = new mongoose.Types.ObjectId("662c05660a775f5b72ebe9ba");
       if (!user.roles.equals(targetRoleId)) {
         return res
           .status(401)
