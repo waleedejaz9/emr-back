@@ -167,11 +167,6 @@ const AuthController = {
         { session }
       );
 
-      await Company.updateOne({ _id: company._id }, { $set: { eaId: userCreated._id } }).session(session);
-
-      // Update user with company information
-      await User.updateOne({ _id: userCreated._id }, { $set: { company: company._id } }).session(session);
-
       const mailOptions = {
         from: { name: "EMR Test", address: "junaidmalikk797@gmail.com" },
         to: eaEmail,
@@ -184,6 +179,13 @@ const AuthController = {
       await session.commitTransaction();
       session.endSession();
 
+      const updated = await Company.updateOne(
+        { _id: company[0]._id },
+        { $set: { eaId: userCreated[0]._id } }
+      );
+      // Update user with company information
+      // await User.updateOne({ _id: userCreated._id }, { $set: { company: company._id } });
+
       await User.updateOne({ _id: userCreated[0]._id }, { $set: { company: company[0]._id } });
 
       const permissionDetail = permission.map((perm) => ({
@@ -193,8 +195,6 @@ const AuthController = {
       }));
 
       const permissionData = await Permission.insertMany(permissionDetail);
-
-      console.log({ permissionData });
 
       res.status(200).json({ success: true, company, permissions: permissionData });
     } catch (error) {
