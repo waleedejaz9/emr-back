@@ -9,7 +9,7 @@ const SurveyController = {
     try {
       const { user } = req;
 
-      const superAdminId = new mongoose.Types.ObjectId("662c05660a775f5b72ebe9ba");
+      const superAdminId = new mongoose.Types.ObjectId("666761113814857c7bd01542");
 
       if (user.roles.equals(superAdminId)) {
         const survey = await Survey.find().populate("questions").populate("createdBy");
@@ -66,7 +66,7 @@ const SurveyController = {
         return res.status(400).json({ success: false, message: "User role not defined." });
       }
 
-      // const superAdminId = new mongoose.Types.ObjectId("662c05660a775f5b72ebe9ba");
+      // const superAdminId = new mongoose.Types.ObjectId("666761113814857c7bd01542");
 
       const surveyData = {
         userId: user._id,

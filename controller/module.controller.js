@@ -9,7 +9,7 @@ const ModuleController = {
   async getModules(req, res) {
     try {
       const { user } = req;
-      // const superAdminId = new mongoose.Types.ObjectId("662c05660a775f5b72ebe9ba");
+      // const superAdminId = new mongoose.Types.ObjectId("666761113814857c7bd01542");
       const modules = await Module.find({ company: user.company })
         .populate("questions")
         .populate("type")
@@ -83,7 +83,7 @@ const ModuleController = {
       const { user } = req;
       const type = req.params.type;
 
-      const superAdminId = new mongoose.Types.ObjectId("662c05660a775f5b72ebe9ba");
+      const superAdminId = new mongoose.Types.ObjectId("666761113814857c7bd01542");
 
       let module;
 
@@ -139,7 +139,7 @@ const ModuleController = {
         return res.status(400).json({ success: false, message: "Module type not found." });
       }
 
-      // const superAdminId = new mongoose.Types.ObjectId("662c05660a775f5b72ebe9ba");
+      // const minId = new mongoose.Types.ObjectId("666761113814857c7bd01542");
 
       const moduleData = {
         type: moduleType._id,
