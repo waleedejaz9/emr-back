@@ -31,15 +31,48 @@ var userSchema = new mongoose.Schema(
     lastName: { type: String, required: false },
     roles: { type: mongoose.Schema.Types.ObjectId, ref: "Role" },
     imagePath: { type: String },
+    emergencyContactFirstName: { type: String, required: false },
+    emergencyContactLastName: { type: String, required: false },
+    emergencyContactRelationship: { type: String, required: false },
+    emergencyContactPhoneNumber: { type: String, required: false },
     company: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Company",
       required: true,
     },
+    companyAddress1: {
+      type: String,
+    },
+    companyAddress2: {
+      type: String,
+    },
+    companyCity: {
+      type: String,
+    },
+    companyState: {
+      type: String,
+    },
+    companyZipCode: {
+      type: String,
+    },
     phoneNumber: { type: String, required: false },
     insuranceProvider: { type: String },
     insuranceMemberId: { type: String },
-    address: { type: String },
+    homeAddress1: {
+      type: String,
+    },
+    homeAddress2: {
+      type: String,
+    },
+    homeCity: {
+      type: String,
+    },
+    homeState: {
+      type: String,
+    },
+    homeZipCode: {
+      type: String,
+    },
     insuranceCompanyId: { type: String },
     email: { type: String, required: true },
     title: { type: String },
@@ -85,11 +118,35 @@ const companySchema = new mongoose.Schema(
     secondaryEmail: { type: String },
     mobilePhone: { type: String },
     companyPhoneNumber: { type: String },
-    extension: { type: String },
-    companyAddress: {
+    businessPhoneExtension: { type: String },
+    companyAddress1: {
       type: String,
     },
-    billingAddress: {
+    companyAddress2: {
+      type: String,
+    },
+    companyCity: {
+      type: String,
+    },
+    companyState: {
+      type: String,
+    },
+    companyZipCode: {
+      type: String,
+    },
+    billingAddress1: {
+      type: String,
+    },
+    billingAddress2: {
+      type: String,
+    },
+    billingCity: {
+      type: String,
+    },
+    billingState: {
+      type: String,
+    },
+    billingZipCode: {
       type: String,
     },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
