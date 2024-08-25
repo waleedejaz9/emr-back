@@ -8,7 +8,10 @@ const { dbUrl } = config;
 const connectDB = async () => {
   try {
     mongoose.set("strictQuery", true);
-    await mongoose.connect(dbUrl);
+    await mongoose.connect(dbUrl, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
 
     console.log("db connected");
   } catch (error) {

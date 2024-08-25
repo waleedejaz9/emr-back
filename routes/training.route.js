@@ -6,9 +6,10 @@ const authorize = require("../middlewares/authorize.middleware");
 const { BlobServiceClient } = require("@azure/storage-blob");
 const uploadMiddleware = require("../middlewares/upload.middleware");
 const { Training, Video, VideoProgress } = require("../models/training.model");
+const uploadToAzure = require("../utils/uploadToAzure");
 const router = express.Router();
-
-const upload = multer({ dest: "uploads/" });
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
 const blobServiceClient = BlobServiceClient.fromConnectionString(
   "DefaultEndpointsProtocol=https;AccountName=emrtraining;AccountKey=DrhWqb3BfWBzmTuPxrvuW/iQYTHo5aPmfLZksnNmgQeb01O2owx4l1V2g86YLYI/mJqF0MM9aC+++AStRlw2eg==;EndpointSuffix=core.windows.net"
@@ -20,7 +21,7 @@ router
   .get("/getById/:id", [authorize()], TrainingController.getTrainingById)
   .get("/completionReport/:trainingId", [authorize()], TrainingController.getCompletionReport)
   .get("/assignedReport/:trainingId", [authorize()], TrainingController.getUserCompletionArr)
-  .post("/", [authorize()], uploadMiddleware("picture"), TrainingController.createTraining)
+  .post("/", [authorize()], upload.any(), TrainingController.createTraining)
   .post("/createTrainingType", [authorize()], TrainingController.createTrainingType)
   .post(
     "/video/:trainingId",
@@ -46,20 +47,14 @@ router
         const videoFile = req.files.video[0];
         const thumbnailFile = req.files.thumbnail[0];
 
-        const videoBlobName = path.basename(videoFile.path);
-        const thumbnailBlobName = `thumbnails/${path.basename(thumbnailFile.path)}`;
-
-        const videoBlockBlobClient = containerClient.getBlockBlobClient(videoBlobName);
-        const thumbnailBlockBlobClient = containerClient.getBlockBlobClient(thumbnailBlobName);
-
-        await videoBlockBlobClient.uploadFile(videoFile.path);
-        await thumbnailBlockBlobClient.uploadFile(thumbnailFile.path);
+        const videoFileUrl = await uploadToAzure(videoFile);
+        const thumbnailFileUrl = await uploadToAzure(thumbnailFile);
 
         const videoCreated = await Video.create({
           userId: user._id,
           trainingId,
-          video: videoBlockBlobClient.url,
-          thumbnail: thumbnailBlockBlobClient.url,
+          video: videoFileUrl,
+          thumbnail: thumbnailFileUrl,
           title: title,
           description: description,
         });
@@ -104,20 +99,14 @@ router
 
         if (req.files && req.files.video) {
           const videoFile = req.files.video[0];
-          const videoBlobName = path.basename(videoFile.path);
-          const videoBlockBlobClient = containerClient.getBlockBlobClient(videoBlobName);
-
-          await videoBlockBlobClient.uploadFile(videoFile.path);
-          videoToUpdate.video = videoBlockBlobClient.url;
+          const videoFileUrl = await uploadToAzure(videoFile);
+          videoToUpdate.video = videoFileUrl;
         }
 
         if (req.files && req.files.thumbnail) {
           const thumbnailFile = req.files.thumbnail[0];
-          const thumbnailBlobName = `thumbnails/${path.basename(thumbnailFile.path)}`;
-          const thumbnailBlockBlobClient = containerClient.getBlockBlobClient(thumbnailBlobName);
-
-          await thumbnailBlockBlobClient.uploadFile(thumbnailFile.path);
-          videoToUpdate.thumbnail = thumbnailBlockBlobClient.url;
+          const thumbnailFileUrl = await uploadToAzure(thumbnailFile);
+          videoToUpdate.thumbnail = thumbnailFileUrl;
         }
 
         if (title) {

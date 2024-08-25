@@ -2,6 +2,7 @@ const { User, Role } = require("../models/user.model");
 const { Training, TrainingType, VideoProgress } = require("../models/training.model");
 const mongoose = require("mongoose");
 const path = require("path");
+const uploadToAzure = require("../utils/uploadToAzure");
 
 const TrainingController = {
   async getTraining(req, res) {
@@ -30,13 +31,23 @@ const TrainingController = {
     try {
       const { user } = req;
       const { name, description, type, assignTo } = req.body;
-      const filePath = path.resolve(__dirname, "uploads", req?.file?.filename || "ok");
+
+      let fileUrl = null;
+      console.log(req.files);
+
+      if (req.files) {
+        const profilePictureFile = req.files.find((file) => file.fieldname === "picture");
+        if (profilePictureFile) {
+          fileUrl = await uploadToAzure(profilePictureFile);
+        }
+      }
+
       const newTraining = await Training.create({
         name,
         description,
         type,
         assignTo,
-        picture: filePath,
+        picture: fileUrl,
         createdBy: user._id,
         company: user.company,
       });
@@ -125,18 +136,7 @@ const TrainingController = {
       return res.status(500).json({ success: false, message: err.message });
     }
   },
-  async getUserCompletionArr(req, res) {
-    try {
-      const { user } = req;
-      const { trainingId } = req.params;
-      const training = await Training.findById(trainingId);
 
-      const users = training.assignTo;
-      const videos = training.vides;
-    } catch (err) {
-      res.status(500).json({ success: false, message: err.message });
-    }
-  },
   async getUserCompletionArr(req, res) {
     try {
       const { trainingId } = req.params;
